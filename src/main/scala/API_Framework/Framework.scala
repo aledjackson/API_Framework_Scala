@@ -4,11 +4,12 @@ import java.io.{BufferedInputStream, DataInputStream}
 import java.net.{ServerSocket, Socket}
 
 import API_Framework.RequestMethod.RequestMethod
+import API_Framework.StatusCode.StatusCode
 import akka.actor.ActorSystem
 
 import scala.annotation.tailrec
 
-class Framework(handlers: Map[(RequestMethod,String), MyJSON => MyJSON]) {
+class Framework(handlers: Map[(RequestMethod,String), MyJSON => (StatusCode, String)]) {
 	def run(port: Int):Unit = {
 		val server = new ServerSocket(port)
 		loop()

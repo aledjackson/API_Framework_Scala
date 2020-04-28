@@ -4,9 +4,10 @@ import java.io.{BufferedInputStream, BufferedOutputStream, DataInputStream, Data
 import java.net.Socket
 
 import API_Framework.RequestMethod.RequestMethod
+import API_Framework.StatusCode.StatusCode
 
 class ConnectionHandler(s: Socket, in: DataInputStream, out: DataOutputStream,
-						handlers: Map[(RequestMethod,String), MyJSON => MyJSON]) extends Runnable{
+						handlers: Map[(RequestMethod,String), MyJSON => (StatusCode,String)]) extends Runnable{
 
 /*	TODO: write wrappers for DataOutputStream and DataInputStream to make them mimic functional objects in terms of error handling */
 
@@ -19,18 +20,16 @@ class ConnectionHandler(s: Socket, in: DataInputStream, out: DataOutputStream,
 //			these all need wrappers to make them functional
 			val handler = handlers.get((request_val.requestMethod,request_val.route));
 			handler match{
-				case Some(h) => sendResponse(h(request_val.obj)); s.close()
+				case Some(h) => val resp = h(request_val.obj); sendResponse(resp._1, resp._2); s.close()
 				case None    => sendResponse(Responses.PAGE_NOT_FOUND); s.close()
 			}
 		}
 	}
 
-	private def sendResponse(response: MyJSON): Unit ={
+	private def sendResponse(statusCode: StatusCode, body: String ): Unit ={
 //		TODO: insert any error checking here or give users the option to have their own error checking functions
-		val strResponse = Responses.template
-		println("sent response: \n" + strResponse)
-		out.write(strResponse.getBytes)
-		out.flush()
+		val formattedResponse =  Responses.formatResponse(statusCode, body)
+		sendResponse(formattedResponse)
 	}
 	private def sendResponse(response: String): Unit ={
 		println("sent response: \n" + response)
@@ -39,7 +38,7 @@ class ConnectionHandler(s: Socket, in: DataInputStream, out: DataOutputStream,
 	}
 }
 object ConnectionHandler{
-	def apply(s: Socket, handlers: Map[(RequestMethod,String), MyJSON => MyJSON]) = {
+	def apply(s: Socket, handlers: Map[(RequestMethod,String), MyJSON => (StatusCode, String)]) = {
 		val bis = new BufferedInputStream(s.getInputStream)
 		val bos = new BufferedOutputStream(s.getOutputStream)
 		val in  = new DataInputStream(bis)

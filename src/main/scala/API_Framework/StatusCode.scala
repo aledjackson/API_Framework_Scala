@@ -5,15 +5,15 @@ object StatusCode extends Enumeration {
 	val _100, _200, _404: Value = Value
 
 	val meanings = Map(
-		_100 -> "continue",
-		_200 -> "OK",
-		_404 -> "Not Found"
+		_100 -> "100 Continue",
+		_200 -> "200 OK",
+		_404 -> "404 Not Found"
 	)
 
 
 	implicit class SCValue(sc : StatusCode) {
 		def asHeader: String = {
-			sc.toString + " " + meanings(sc)
+			meanings(sc)
 		}
 	}
 
