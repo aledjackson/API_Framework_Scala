@@ -1,12 +1,10 @@
-package API_Framework
+package API_Framework.data_types
 
 import java.io.DataInputStream
 
-import API_Framework.RequestMethod.RequestMethod
+import RequestMethod.RequestMethod
 
 import scala.annotation.tailrec
-import scala.collection.mutable.ListBuffer
-import scala.util.matching.Regex.Match
 
 
 class HTTPRequest(val requestMethod: RequestMethod,

@@ -1,7 +1,4 @@
-package API_Framework
-
-import scala.annotation.tailrec
-import scala.collection.mutable.ListBuffer
+package API_Framework.data_types
 
 abstract class MyJSON {
 	def toString(i: Int, indent: Int = 4): String

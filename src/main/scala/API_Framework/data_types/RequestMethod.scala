@@ -1,4 +1,4 @@
-package API_Framework
+package API_Framework.data_types
 
 object RequestMethod extends Enumeration {
 	type RequestMethod = Value
