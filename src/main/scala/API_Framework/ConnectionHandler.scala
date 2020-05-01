@@ -6,29 +6,35 @@ import java.net.Socket
 import API_Framework.data_types.RequestMethod.RequestMethod
 import API_Framework.data_types.StatusCode.StatusCode
 import API_Framework.data_types.{HTTPHeader, HTTPRequest, HTTPResponse, MyJSON}
+import API_Framework.exceptions.{MalformedPacketException, HandlerNotFoundException, WithinHandlerException}
 
 class ConnectionHandler(s: Socket, in: DataInputStream, out: DataOutputStream,
-						handlers: Map[(RequestMethod,String), HTTPRequest => (StatusCode,String)]) extends Runnable{
+						_handlers: Map[(RequestMethod,String), HTTPRequest => (StatusCode,String)]) extends Runnable{
+
+
+
+	val handlers = new HandlerSet(_handlers);
+
+
 
 /*	TODO: write wrappers for DataOutputStream and DataInputStream
      to make them mimic functional objects in terms of error handling */
 
 	override def run(): Unit = {
-		val request = HTTPRequest.gatherRequest(in)
-		request match {
-			case Left(e)  => sendResponse(Responses.MALFORMED_PACKET)
-			case Right(request_val) => {
-				val header = request_val.header
-				val handler = handlers.get((header.requestMethod, header.route));
-				handler match {
-					case None => sendResponse(Responses.PAGE_NOT_FOUND); s.close()
-					case Some(h) => processRequest(h(request_val)) match {
-						case Right((sc, body)) => sendResponse(sc, body); s.close()
-						case Left(_) => sendResponse(Responses.INTERNAL_ERROR); s.close()
-					}
-				}
+
+		val errorCatch = for {
+			request  <- HTTPRequest.gatherRequest(in)
+			handler  <- handlers(request.header.requestMethod, request.header.route)
+			response <- processRequest(handler(request))
+		} yield sendResponse(response._1, response._2)
+
+		errorCatch match {
+			case Left(e: MalformedPacketException) => sendResponse(Responses.MALFORMED_PACKET)
+			case Left(e: WithinHandlerException)   => sendResponse(Responses.INTERNAL_ERROR)
+			case Left(e: HandlerNotFoundException) => sendResponse(Responses.PAGE_NOT_FOUND)
 		}
-	}
+
+		s.close()
 
 
 	}
@@ -38,7 +44,8 @@ class ConnectionHandler(s: Socket, in: DataInputStream, out: DataOutputStream,
 		try{
 			Right(handler)
 		} catch {
-			case _ => Left(new Exception("Error occured within the handler"))
+//					there is good reason for this being exhaustive
+			case _ => Left(new WithinHandlerException("Error occured within the handler"))
 		}
 	}
 
@@ -55,7 +62,7 @@ class ConnectionHandler(s: Socket, in: DataInputStream, out: DataOutputStream,
 
 
 object ConnectionHandler{
-	def apply(s: Socket, handlers: Map[(RequestMethod,String), HTTPRequest => (StatusCode, String)]) = {
+	def apply(s: Socket, handlers: Map[(RequestMethod,String), HTTPRequest => (StatusCode, String)]): Unit = {
 		val bis = new BufferedInputStream(s.getInputStream)
 		val bos = new BufferedOutputStream(s.getOutputStream)
 		val in  = new DataInputStream(bis)
@@ -64,5 +71,14 @@ object ConnectionHandler{
 		val th = new Thread(ch)
 		th.start()
 
+	}
+}
+
+class HandlerSet(handlers: Map[(RequestMethod,String), HTTPRequest => (StatusCode,String)]) {
+	def apply(key: (RequestMethod,String)): Either[Exception, HTTPRequest => (StatusCode,String)] = {
+		handlers.get(key) match {
+			case Some(handler)  => Right(handler)
+			case None           => Left(new HandlerNotFoundException(""))
+		}
 	}
 }

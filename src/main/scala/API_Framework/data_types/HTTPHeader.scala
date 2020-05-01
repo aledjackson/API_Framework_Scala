@@ -3,7 +3,7 @@ package API_Framework.data_types
 import java.io.DataInputStream
 
 import API_Framework.Helpers.Int
-
+import API_Framework.exceptions.MalformedPacketException
 import API_Framework.{Framework, Helpers}
 import RequestMethod.RequestMethod
 import com.fasterxml.jackson.annotation.ObjectIdGenerators.StringIdGenerator
@@ -34,8 +34,8 @@ class HTTPHeader(val requestMethod: RequestMethod,
 			case RequestMethod.GET  => Right("")
 			case RequestMethod.POST => headers.get("content-length") match {
 				case Some(Int(x)) => Right(gb(in, new StringBuilder(), x.toInt))
-				case Some(_)      => Left(new Exception("invalid content-length format"))
-				case None         => Left(new Exception("a content length was not given"))
+				case Some(_)      => Left(new MalformedPacketException("invalid content-length format"))
+				case None         => Left(new MalformedPacketException("a content length was not given"))
 			}
 		}
 
@@ -85,7 +85,7 @@ object HTTPHeader{
 		@tailrec def _gh(in: DataInputStream, string: StringBuilder,
 						 newLineCount: Int, length: Int):Either[Exception, String] = {
 			if(length > Framework.MAX_HEADER_SIZE){
-				Left(new Exception("Malformed Packet, header too big"))
+				Left(new MalformedPacketException)
 			}
 			else if(newLineCount < 2) {
 				val char = in.readByte().asInstanceOf[Char]
